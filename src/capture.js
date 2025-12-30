@@ -7,94 +7,10 @@
  * Can be run manually or triggered by a SessionEnd hook.
  */
 
-import { readFileSync, existsSync } from 'fs';
 import { createInterface } from 'readline';
 import { createEntry, validateEntry } from './schema.js';
 import { saveEntry } from './storage.js';
-
-/**
- * Parse a Claude Code transcript JSONL file
- * @param {string} transcriptPath
- * @returns {Object[]}
- */
-function parseTranscript(transcriptPath) {
-  if (!existsSync(transcriptPath)) {
-    console.error(`Transcript not found: ${transcriptPath}`);
-    process.exit(1);
-  }
-
-  const content = readFileSync(transcriptPath, 'utf-8');
-  const lines = content.split('\n').filter(line => line.trim());
-
-  return lines.map((line, i) => {
-    try {
-      return JSON.parse(line);
-    } catch (e) {
-      console.error(`Failed to parse line ${i + 1}`);
-      return null;
-    }
-  }).filter(Boolean);
-}
-
-/**
- * Extract key information from transcript
- * @param {Object[]} messages
- * @returns {Object}
- */
-function analyzeTranscript(messages) {
-  const userMessages = [];
-  const assistantMessages = [];
-  const toolsUsed = new Set();
-  const filesModified = new Set();
-
-  for (const msg of messages) {
-    if (msg.type === 'user' || msg.role === 'user') {
-      const content = typeof msg.content === 'string'
-        ? msg.content
-        : msg.content?.map(c => c.text || '').join('\n') || '';
-      if (content.trim()) userMessages.push(content);
-    }
-
-    if (msg.type === 'assistant' || msg.role === 'assistant') {
-      const content = typeof msg.content === 'string'
-        ? msg.content
-        : msg.content?.map(c => c.text || '').join('\n') || '';
-      if (content.trim()) assistantMessages.push(content);
-
-      // Extract tool uses
-      if (Array.isArray(msg.content)) {
-        for (const block of msg.content) {
-          if (block.type === 'tool_use') {
-            toolsUsed.add(block.name);
-            // Track file modifications
-            if (['Write', 'Edit'].includes(block.name) && block.input?.file_path) {
-              filesModified.add(block.input.file_path);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Get the initial problem (first substantive user message)
-  const initialProblem = userMessages.find(m =>
-    m.length > 20 && !m.match(/^(yes|no|y|n|ok|thanks|thank you)$/i)
-  ) || userMessages[0] || '';
-
-  // Get the final response/solution (last assistant message with substance)
-  const solutions = assistantMessages.filter(m => m.length > 50);
-  const finalSolution = solutions[solutions.length - 1] || assistantMessages[assistantMessages.length - 1] || '';
-
-  return {
-    problem: initialProblem,
-    solution: finalSolution,
-    messageCount: messages.length,
-    toolsUsed: Array.from(toolsUsed),
-    filesModified: Array.from(filesModified),
-    userMessageCount: userMessages.length,
-    assistantMessageCount: assistantMessages.length
-  };
-}
+import { parseTranscript, analyzeTranscript } from './capture-core.js';
 
 /**
  * Auto-generate tags from content
@@ -162,9 +78,15 @@ function ask(rl, question) {
  */
 async function main() {
   // Get transcript path from args or stdin (hook input)
-  let transcriptPath = process.argv[2];
-  let sessionId = process.argv[3] || '';
-  let cwd = process.argv[4] || process.cwd();
+  const rawArgs = process.argv.slice(2);
+  const forcePrompt = rawArgs.includes('--force') || rawArgs.includes('-f')
+    || process.env.CCI_FORCE_PROMPT === '1'
+    || process.env.CCI_FORCE_PROMPT === 'true';
+  const args = rawArgs.filter(a => !['--force', '-f'].includes(a));
+
+  let transcriptPath = args[0];
+  let sessionId = args[1] || '';
+  let cwd = args[2] || process.cwd();
 
   // If no args, try to read hook input from stdin
   if (!transcriptPath && !process.stdin.isTTY) {
@@ -193,13 +115,26 @@ async function main() {
 
   // Parse and analyze
   const messages = parseTranscript(transcriptPath);
-  const analysis = analyzeTranscript(messages);
+  const minExchanges = parseInt(process.env.CCI_MIN_EXCHANGES || '3', 10);
+  const analysis = analyzeTranscript(messages, { minExchanges });
 
   console.log('Session summary:');
   console.log(`  Messages: ${analysis.messageCount}`);
+  console.log(`  Exchanges: ${analysis.exchangeCount}`);
   console.log(`  Tools used: ${analysis.toolsUsed.join(', ') || 'none'}`);
   console.log(`  Files modified: ${analysis.filesModified.length}`);
   console.log('');
+
+  if (!analysis.shouldPrompt && !forcePrompt) {
+    console.log('No save-worthy signals detected. Skipping.');
+    console.log('Tip: run with --force to review anyway.');
+    process.exit(0);
+  }
+
+  if (analysis.reasons.length > 0) {
+    console.log(`Detected signals: ${analysis.reasons.join(', ')}`);
+    console.log('');
+  }
 
   // Show extracted problem/solution
   console.log('--- Extracted Problem ---');

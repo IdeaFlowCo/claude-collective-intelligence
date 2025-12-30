@@ -9,7 +9,8 @@
   "scripts": {
     "capture": "node src/capture.js",
     "search": "node src/search.js",
-    "serve": "node src/server.js"
+    "serve": "node src/server.js",
+    "test": "node --test"
   },
   "keywords": [
     "claude",

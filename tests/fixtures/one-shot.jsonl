@@ -1,0 +1,2 @@
+{"type":"user","message":{"role":"user","content":"How do I set NODE_ENV in a Node script?"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"You can set NODE_ENV inline like NODE_ENV=production node app.js, or use cross-env for Windows."}]}}

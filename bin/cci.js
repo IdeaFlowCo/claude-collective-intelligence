@@ -10,7 +10,7 @@ import { program } from 'commander';
 import { searchEntries, loadAllEntries, getStats, saveEntry, REPO_ROOT } from '../src/storage.js';
 import { createEntry, validateEntry } from '../src/schema.js';
 import { createInterface } from 'readline';
-import { execSync } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, existsSync, writeFileSync, mkdirSync, copyFileSync } from 'fs';
@@ -59,8 +59,20 @@ program
 program
   .command('capture <transcript>')
   .description('Capture a Claude Code session')
-  .action((transcript) => {
-    import('../src/capture.js');
+  .option('-f, --force', 'Force prompt even if no signals detected')
+  .option('--session <id>', 'Session ID')
+  .option('--cwd <path>', 'Project path')
+  .action((transcript, options) => {
+    const scriptPath = join(REPO_ROOT, 'src', 'capture.js');
+    const args = [scriptPath, transcript];
+    if (options.session) args.push(options.session);
+    if (options.cwd) args.push(options.cwd);
+    if (options.force) args.push('--force');
+
+    const result = spawnSync('node', args, { stdio: 'inherit' });
+    if (result.status && result.status !== 0) {
+      process.exit(result.status);
+    }
   });
 
 program

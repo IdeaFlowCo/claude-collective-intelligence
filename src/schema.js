@@ -4,6 +4,8 @@
  * Each entry represents a problem-solution pair captured from a Claude Code session.
  */
 
+import crypto from 'crypto';
+
 /**
  * @typedef {Object} KnowledgeEntry
  * @property {string} id - Unique identifier (uuid)

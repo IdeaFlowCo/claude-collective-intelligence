@@ -9,6 +9,43 @@
 - **Outdated API detection** - Flag when Claude's training data is stale
 - **Automatic context** - "What did I ask about this before?"
 
+## User Stories
+
+- As a developer, when I solve a multi-turn problem (e.g., updated API key format), I want CCI to prompt me to save a distilled fix.
+- As a teammate, I want to search past solutions by keyword and see the exact working steps and the date it was saved.
+- As a tech lead, I want only failure→success sessions captured so the knowledge base stays high-signal.
+- As a developer using fast-moving APIs, I want stale-training fixes recorded so the next person avoids the same trap.
+- As a privacy-conscious user, I want to edit/redact before saving anything to shared storage.
+- As a new teammate, I want to find internal conventions and “the right way” by browsing CCI.
+- As a power user, I want a database of known workarounds (OS/app quirks like permissions resets) so I can fix recurring issues fast.
+
+## Acceptance Criteria (MVP)
+
+- CCI only prompts to save when a session shows multi-turn problem solving (not one-shot).
+- A saved entry includes problem, solution, timestamp, tags, and source (at minimum).
+- User can edit/redact problem/solution/tags before saving.
+- Entries are stored as JSONL in `knowledge/entries.jsonl` and are searchable via `cci search`.
+- No raw transcripts are stored by default.
+- `node bin/cci.js setup` installs a working SessionEnd hook without breaking existing hooks.
+
+## Prioritization
+
+**P0 (MVP)**: smart capture detection, save prompt, edit-before-save, keyword search, git-based sharing  
+**P1**: bulk import + review queue, simple dedupe, project/path redaction helpers, workaround/quirk catalog  
+**P2**: semantic search (embeddings) + relevance reranking  
+**P3**: web UI, permissions/visibility per entry, community registry
+
+## Concrete Use Cases
+
+- **Stale SDK/API change** - "SDK v3 renamed `client.create` → `client.responses.create`"
+- **Auth header nuance** - "Requires `Authorization: Bearer` *and* `X-Project-Id` or it 401s"
+- **Env var naming mismatch** - "Repo expects `AI_API_KEY`, not `OPENAI_API_KEY`"
+- **CLI version mismatch** - "Deploy fails unless `terraform` is pinned to `1.6.x`"
+- **Internal service URL** - "Use `http://svc-name.internal:8081`, not the public host"
+- **Permissions gotcha** - "Add `secretsmanager:GetSecretValue` or runtime fails"
+- **Migration ordering** - "Run migration A before backfill or it deadlocks"
+- **Webhook signature scheme** - "Use raw body, not parsed JSON, for verification"
+
 ## Quick Start (2 minutes)
 
 ### 1. Clone and install
@@ -26,12 +63,12 @@ node bin/cci.js setup
 ```
 
 This automatically:
-- Installs the SessionEnd hook (prompts to save when you exit Claude Code)
+- Installs the SessionEnd hook (prompts to save when a session looks save-worthy)
 - Installs the CCI skill (lets Claude search the knowledge base)
 
 ### 3. Done!
 
-Now when you finish a Claude Code session, you'll see:
+Now when you finish a Claude Code session that meets the save-worthy signals, you'll see:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

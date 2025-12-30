@@ -1,0 +1,5 @@
+{"type":"user","message":{"role":"user","content":"I'm getting a 401 from the API. How do I authenticate?"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Try using the API key in the request body as api_key."}]}}
+{"type":"user","message":{"role":"user","content":"That didn't work. Still getting 401."}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Use an Authorization header: Authorization: Bearer <key> and include X-Project-Id."}]}}
+{"type":"user","message":{"role":"user","content":"That worked, thanks!"}}

@@ -15,6 +15,32 @@ The valuable entries are:
 
 Raw chat logs are noise. Consolidated insights are signal.
 
+## User Stories
+
+- As a developer, when I solve a multi-turn problem (e.g., updated API key format), I want CCI to prompt me to save a distilled fix.
+- As a teammate, I want to search past solutions by keyword and see the exact working steps and the date it was saved.
+- As a tech lead, I want only failure→success sessions captured so the knowledge base stays high-signal.
+- As a developer using fast-moving APIs, I want stale-training fixes recorded so the next person avoids the same trap.
+- As a privacy-conscious user, I want to edit/redact before saving anything to shared storage.
+- As a new teammate, I want to find internal conventions and “the right way” by browsing CCI.
+- As a power user, I want a database of known workarounds (OS/app quirks like permissions resets) so I can fix recurring issues fast.
+
+## Acceptance Criteria (MVP)
+
+- CCI only prompts to save when a session shows multi-turn problem solving (not one-shot).
+- A saved entry includes problem, solution, timestamp, tags, and source (at minimum).
+- User can edit/redact problem/solution/tags before saving.
+- Entries are stored as JSONL in `knowledge/entries.jsonl` and are searchable via `cci search`.
+- No raw transcripts are stored by default.
+- `node bin/cci.js setup` installs a working SessionEnd hook without breaking existing hooks.
+
+## Prioritization
+
+**P0 (MVP)**: smart capture detection, save prompt, edit-before-save, keyword search, git-based sharing  
+**P1**: bulk import + review queue, simple dedupe, project/path redaction helpers, workaround/quirk catalog  
+**P2**: semantic search (embeddings) + relevance reranking  
+**P3**: web UI, permissions/visibility per entry, community registry
+
 ## Current State (v0.1 - MVP)
 
 ### Built and Working
