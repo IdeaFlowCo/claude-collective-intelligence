@@ -57,6 +57,19 @@ When no entries match:
 - "check knowledge base for API authentication patterns"
 - "find CCI entries about docker deployment"
 
+## CRITICAL: No Private Data in CCI
+
+**CCI is a PUBLIC GitHub repo.** Before saving ANY entry, you MUST scrub:
+
+- **IP addresses** — use `HOST` or `<server-ip>` placeholders
+- **Passwords / secrets / API keys** — use `PASSWORD`, `SECRET`, `API_KEY` placeholders
+- **Server hostnames / domains** specific to the user's infrastructure
+- **Email addresses** — use generic examples like `user@example.com`
+- **Database connection strings** with real credentials
+- **Full file paths** that reveal private project structure
+
+The insight is what matters, not the specific infrastructure. Keep solutions generic and reusable by anyone.
+
 ## After Solving New Problems
 
 Remind users they can save successful solutions:

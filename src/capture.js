@@ -13,6 +13,38 @@ import { saveEntry } from './storage.js';
 import { parseTranscript, analyzeTranscript } from './capture-core.js';
 
 /**
+ * Sanitize text to remove private/sensitive data before saving to public CCI repo.
+ * Replaces IPs, passwords, API keys, emails, connection strings, etc. with placeholders.
+ * @param {string} text
+ * @returns {string}
+ */
+function sanitizeForPublic(text) {
+  let sanitized = text;
+
+  // Replace IP addresses (IPv4) with placeholder
+  sanitized = sanitized.replace(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g, '<server-ip>');
+
+  // Replace common connection strings: bolt://host:port, mongodb://..., postgres://...
+  sanitized = sanitized.replace(/(bolt|mongodb|postgres|postgresql|mysql|redis):\/\/[^\s,)'"]+/gi, '$1://HOST:PORT');
+
+  // Replace API keys/tokens (long hex or base64 strings, 20+ chars)
+  sanitized = sanitized.replace(/\b[A-Za-z0-9_-]{32,}\b/g, (match) => {
+    // Skip common long words, UUIDs, and hashes that are part of the solution
+    if (/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(match)) return match; // UUID
+    if (/^[a-f0-9]{40}$/i.test(match)) return match; // git SHA
+    return '<REDACTED_KEY>';
+  });
+
+  // Replace email addresses
+  sanitized = sanitized.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, 'user@example.com');
+
+  // Replace bearer/auth tokens in examples
+  sanitized = sanitized.replace(/(Bearer|Authorization:?\s*)\s*[A-Za-z0-9._-]{20,}/gi, '$1 <TOKEN>');
+
+  return sanitized;
+}
+
+/**
  * Auto-generate tags from content
  * @param {Object} analysis
  * @returns {string[]}
@@ -167,15 +199,20 @@ async function main() {
   const editTags = await ask(rl, `Edit tags? (comma-separated, or press Enter to keep [${tags.join(', ')}]): `);
   const source = await ask(rl, 'Your name/alias (or press Enter for anonymous): ');
 
+  // Sanitize all text fields before saving (CCI is a public repo)
+  const finalProblem = sanitizeForPublic(editProblem || analysis.problem);
+  const finalSolution = sanitizeForPublic(editSolution || analysis.solution);
+  const finalContext = sanitizeForPublic(`Files modified: ${analysis.filesModified.join(', ')}`);
+
   // Create entry
   const entry = createEntry({
-    problem: editProblem || analysis.problem,
-    solution: editSolution || analysis.solution,
+    problem: finalProblem,
+    solution: finalSolution,
     tags: editTags ? editTags.split(',').map(t => t.trim()) : tags,
-    context: `Project: ${cwd}\nFiles modified: ${analysis.filesModified.join(', ')}`,
+    context: finalContext,
     source: source || 'anonymous',
     sessionId: sessionId,
-    projectPath: cwd,
+    projectPath: '',  // Don't leak full project paths
     messageCount: analysis.messageCount,
     toolsUsed: analysis.toolsUsed
   });
