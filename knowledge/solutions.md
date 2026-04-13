@@ -211,3 +211,28 @@ solution: |
 
   Status: Provisionally great — actively maintained, battle-tested patterns from real projects.
 tags: vibe-coding, guide, claude-code, workflows, multi-agent, reference
+
+---
+date: 2026-04-12
+problem: Need to scrape/export public Google Docs content without setting up API credentials
+solution: |
+  Public Google Docs can be exported directly via URL — no API key or OAuth needed:
+
+  ```
+  https://docs.google.com/document/d/{DOC_ID}/export?format=txt
+  ```
+
+  Supported formats: txt, pdf, docx, html, odt, rtf, epub
+
+  Extract the DOC_ID from any Google Docs URL:
+  ```python
+  import re
+  match = re.search(r'/document/d/([a-zA-Z0-9_-]+)', url)
+  doc_id = match.group(1) if match else None
+  ```
+
+  For private docs (returns 401/403), fall back to indicating it's a private document
+  with an external link rather than trying to scrape.
+
+  This is simpler than Google Docs API with service accounts when docs are publicly shared.
+tags: google-docs, scraping, export, api, public-documents
