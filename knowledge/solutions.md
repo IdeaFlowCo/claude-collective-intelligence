@@ -236,3 +236,32 @@ solution: |
 
   This is simpler than Google Docs API with service accounts when docs are publicly shared.
 tags: google-docs, scraping, export, api, public-documents
+
+---
+date: 2026-04-12
+problem: Google Docs public export endpoint returns 429 Too Many Requests when scraping many documents
+solution: |
+  When batch-exporting public Google Docs via the /export?format=txt URL trick,
+  Google rate-limits aggressively — typically after 30-50 requests in quick succession.
+
+  Rate limiting strategy that works:
+  - 2-second sleep between each Google Docs fetch
+  - 10-second pause every 20 documents
+  - Make the script idempotent (skip pages that already have content)
+  - Log progress clearly so you can resume from where you left off
+
+  If also writing results to an API (e.g., wikihub), add separate rate limiting
+  for the destination API too — don't just throttle the Google side.
+
+  ```python
+  import time
+  for i, doc_url in enumerate(doc_urls):
+      if i > 0 and i % 20 == 0:
+          time.sleep(10)  # longer pause every 20 docs
+      # ... fetch and process ...
+      time.sleep(2)  # between each request
+  ```
+
+  For very large batches (400+ docs), consider running overnight or splitting
+  into multiple runs.
+tags: google-docs, rate-limiting, 429, scraping, batch-processing
