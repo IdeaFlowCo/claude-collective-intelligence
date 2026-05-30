@@ -26,13 +26,13 @@ local function dim()
 end
 
 local function restore()
-  local dev = hs.audiodevice.defaultOutputDevice()
-  dev:setMuted(false)
-  if savedVolume then dev:setVolume(savedVolume) end
+  -- Brightness only. Do NOT un-mute here — see "The self-wake trap" below.
   pcall(function() hs.brightness.set(50) end)
 end
 
--- Apply at script load (default state for headless server is dim+silent)
+-- Apply at script load (default state for headless server is dim+silent).
+-- This line is easy to forget — without it the box keeps whatever volume it
+-- had until the first lock event fires.
 dim()
 
 -- React to lock/unlock
@@ -41,6 +41,30 @@ hs.caffeinate.watcher.new(function(e)
   elseif e == cw.screensDidUnlock or e == cw.sessionDidBecomeActive then restore() end
 end):start()
 ```
+
+## The self-wake trap (the thing that actually bit us, 2026-05-30)
+
+The seductive version of `restore()` un-mutes and restores the saved volume on
+`screensDidUnlock` **or** `sessionDidBecomeActive` **or** `screensDidWake`. On a
+desktop that's fine. **On a 24/7 headless server it is wrong**, because those
+"active/wake" events fire constantly on their own — the box wakes for the
+network, `powerd`, `coreaudiod`, an SSH login, etc. Each self-wake runs
+`restore()`, which un-mutes and slams the volume back to ~81. Net effect: the
+server is audible *whenever its session is active*, which on a server is most of
+the time. The diag log is a giveaway — a long `dim → restore → dim → restore`
+ping-pong, ending on `restore`.
+
+**Fix:** for an appliance, treat **muted as the permanent resting state**. `dim()`
+asserts mute + volume 0; `restore()` only touches brightness; audio is never
+auto-un-muted. If you're physically at the box and want sound, set it manually:
+
+```bash
+ssh server-mac 'osascript -e "set volume output volume 25 without output muted"'
+```
+
+(If you do want sound to come back for a *human*, gate it on a real
+physical-presence signal — e.g. only `screensDidUnlock` after a password, not
+every `sessionDidBecomeActive` — not on the wake events a server fires by itself.)
 
 ## Why this beats the alternatives
 
